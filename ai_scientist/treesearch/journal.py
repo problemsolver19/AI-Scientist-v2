@@ -467,18 +467,21 @@ class Journal:
                 prompt["Candidates"] += candidate_info
 
         try:
+            reasoning_effort = None
             if cfg is None or cfg.agent.get("select_node", None) is None:
                 model = "gpt-4o"
                 temperature = 0.3
             else:
                 model = cfg.agent.select_node.model
                 temperature = cfg.agent.select_node.temp
+                reasoning_effort = getattr(cfg.agent.select_node, "reasoning_effort", None)
             selection = query(
                 system_message=prompt,
                 user_message=None,
                 func_spec=node_selection_spec,
                 model=model,
-                temperature=temperature
+                temperature=temperature,
+                reasoning_effort=reasoning_effort,
             )
 
             # Find and return the selected node
@@ -542,7 +545,8 @@ class Journal:
                 "3. Specific recommendations for future experiments based on both successes and failures"
             ),
             model=model_kwargs.get("model", "gpt-4o"),
-            temperature=model_kwargs.get("temp", 0.3)
+            temperature=model_kwargs.get("temp", 0.3),
+            reasoning_effort=model_kwargs.get("reasoning_effort"),
         )
 
         return summary
@@ -605,7 +609,12 @@ class Journal:
             system_message=summary_prompt,
             user_message="Generate a comprehensive summary of the experimental findings in this stage",
             model=cfg.agent.summary.model if cfg.agent.get("summary", None) else "gpt-4o",
-            temperature=cfg.agent.summary.temp if cfg.agent.get("summary", None) else 0.3
+            temperature=cfg.agent.summary.temp if cfg.agent.get("summary", None) else 0.3,
+            reasoning_effort=(
+                getattr(cfg.agent.summary, "reasoning_effort", None)
+                if cfg.agent.get("summary", None)
+                else None
+            ),
         )
 
         with open(os.path.join(notes_dir, f"{stage_name}_summary.txt"), "w") as f:

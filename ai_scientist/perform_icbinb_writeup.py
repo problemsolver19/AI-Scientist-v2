@@ -335,7 +335,13 @@ def get_reflection_page_info(reflection_pdf, page_limit):
 
 
 def get_citation_addition(
-    client, model, context, current_round, total_rounds, idea_text
+    client,
+    model,
+    context,
+    current_round,
+    total_rounds,
+    idea_text,
+    reasoning_effort=None,
 ):
     report, citations = context
     msg_history = []
@@ -439,6 +445,7 @@ This JSON will be automatically parsed, so ensure the format is precise."""
             ),
             msg_history=msg_history,
             print_debug=False,
+            reasoning_effort=reasoning_effort,
         )
         if "No more citations needed" in text:
             print("No more citations needed.")
@@ -485,6 +492,7 @@ This JSON will be automatically parsed, so ensure the format is precise."""
             ),
             msg_history=msg_history,
             print_debug=False,
+            reasoning_effort=reasoning_effort,
         )
         if "Do not add any" in text:
             print("Do not add any.")
@@ -742,7 +750,12 @@ def filter_experiment_summaries(exp_summaries, step_name):
     return filtered_summaries
 
 
-def gather_citations(base_folder, num_cite_rounds=20, small_model="gpt-4o-2024-05-13"):
+def gather_citations(
+    base_folder,
+    num_cite_rounds=20,
+    small_model="gpt-4o-2024-05-13",
+    reasoning_effort=None,
+):
     """
     Gather citations for a paper, with ability to resume from previous progress.
 
@@ -800,6 +813,7 @@ def gather_citations(base_folder, num_cite_rounds=20, small_model="gpt-4o-2024-0
                     round_idx,
                     num_cite_rounds,
                     idea_text,
+                    reasoning_effort=reasoning_effort,
                 )
 
                 if done:
@@ -863,6 +877,7 @@ def perform_writeup(
     big_model="o1-2024-12-17",
     n_writeup_reflections=3,
     page_limit=4,
+    reasoning_effort=None,
 ):
     pdf_file = osp.join(base_folder, f"{osp.basename(base_folder)}.pdf")
     latex_folder = osp.join(base_folder, "latex")
@@ -1000,6 +1015,7 @@ def perform_writeup(
             model=big_client_model,
             system_message=big_model_system_message,
             print_debug=False,
+            reasoning_effort=reasoning_effort,
         )
 
         latex_code_match = re.search(r"```latex(.*?)```", response, re.DOTALL)
@@ -1089,6 +1105,7 @@ Ensure proper citation usage:
                 system_message=big_model_system_message,
                 msg_history=msg_history[-1:],
                 print_debug=False,
+                reasoning_effort=reasoning_effort,
             )
 
             # 2nd run:
@@ -1151,6 +1168,7 @@ If you believe you are done with reflection, simply say: "I am done"."""
                 system_message=big_model_system_message,
                 msg_history=msg_history[-1:],
                 print_debug=False,
+                reasoning_effort=reasoning_effort,
             )
 
             if "I am done" in reflection_response:
@@ -1201,6 +1219,7 @@ USE MINIMAL EDITS TO OPTIMIZE THE PAGE LIMIT USAGE."""
             system_message=big_model_system_message,
             msg_history=msg_history[-1:],
             print_debug=False,
+            reasoning_effort=reasoning_effort,
         )
 
         reflection_pdf = osp.join(

@@ -664,6 +664,7 @@ class MinimalAgent:
                 user_message=None,
                 model=self.cfg.agent.code.model,
                 temperature=self.cfg.agent.code.temp,
+                reasoning_effort=getattr(self.cfg.agent.code, "reasoning_effort", None),
             )
 
             code = extract_code(completion_text)
@@ -706,6 +707,7 @@ class MinimalAgent:
                 func_spec=review_func_spec,
                 model=self.cfg.agent.feedback.model,
                 temperature=self.cfg.agent.feedback.temp,
+                reasoning_effort=getattr(self.cfg.agent.feedback, "reasoning_effort", None),
             ),
         )
 
@@ -857,6 +859,7 @@ class MinimalAgent:
                 user_message=None,
                 model=self.cfg.agent.feedback.model,
                 temperature=self.cfg.agent.feedback.temp,
+                reasoning_effort=getattr(self.cfg.agent.feedback, "reasoning_effort", None),
             )
 
             (
@@ -934,6 +937,7 @@ class MinimalAgent:
                         func_spec=plot_selection_spec,
                         model=self.cfg.agent.feedback.model,
                         temperature=self.cfg.agent.feedback.temp,
+                        reasoning_effort=getattr(self.cfg.agent.feedback, "reasoning_effort", None),
                     ),
                 )
 
@@ -1012,6 +1016,7 @@ class MinimalAgent:
                 func_spec=vlm_feedback_spec,
                 model=self.cfg.agent.vlm_feedback.model,
                 temperature=self.cfg.agent.vlm_feedback.temp,
+                reasoning_effort=getattr(self.cfg.agent.vlm_feedback, "reasoning_effort", None),
             ),
         )
         print(
@@ -1084,6 +1089,7 @@ class MinimalAgent:
                 },
                 model=self.cfg.agent.feedback.model,
                 temperature=self.cfg.agent.feedback.temp,
+                reasoning_effort=getattr(self.cfg.agent.feedback, "reasoning_effort", None),
             ),
         )
 
@@ -1216,6 +1222,7 @@ class ParallelAgent:
             user_message=None,
             model=self.cfg.agent.code.model,
             temperature=self.cfg.agent.code.temp,
+            reasoning_effort=getattr(self.cfg.agent.code, "reasoning_effort", None),
         )
 
         print(f"[green]Defined eval metrics:[/green] {response}")
@@ -1230,6 +1237,7 @@ class ParallelAgent:
                 user_message=None,
                 model=self.cfg.agent.code.model,
                 temperature=self.cfg.agent.code.temp,
+                reasoning_effort=getattr(self.cfg.agent.code, "reasoning_effort", None),
             )
 
             code = extract_code(completion_text)
@@ -1624,6 +1632,7 @@ class ParallelAgent:
                                 func_spec=metric_parse_spec,
                                 model=cfg.agent.feedback.model,
                                 temperature=cfg.agent.feedback.temp,
+                                reasoning_effort=getattr(cfg.agent.feedback, "reasoning_effort", None),
                             ),
                         )
                         # If there is any None value, child_node.metric should be set to WorstMetricValue.
@@ -1834,6 +1843,7 @@ class ParallelAgent:
                 user_message=None,
                 model=self.cfg.agent.code.model,
                 temperature=self.cfg.agent.code.temp,
+                reasoning_effort=getattr(self.cfg.agent.code, "reasoning_effort", None),
             )
 
             # Parse the response
@@ -1897,6 +1907,7 @@ class ParallelAgent:
                 user_message=None,
                 model=self.cfg.agent.code.model,
                 temperature=self.cfg.agent.code.temp,
+                reasoning_effort=getattr(self.cfg.agent.code, "reasoning_effort", None),
             )
 
             # Parse the response

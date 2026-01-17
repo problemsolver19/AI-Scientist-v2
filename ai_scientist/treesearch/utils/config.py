@@ -39,6 +39,7 @@ class StageConfig:
     thinking: ThinkingConfig
     betas: str
     max_tokens: Optional[int] = None
+    reasoning_effort: Optional[str] = None
 
 
 @dataclass
@@ -86,6 +87,31 @@ class ExperimentConfig:
 
 
 @dataclass
+class WriteupConfig:
+    model: str
+    model_small: str
+    reasoning_effort: Optional[str] = None
+
+
+@dataclass
+class CitationConfig:
+    model: str
+    reasoning_effort: Optional[str] = None
+
+
+@dataclass
+class ReviewConfig:
+    model: str
+    reasoning_effort: Optional[str] = None
+
+
+@dataclass
+class AggPlotsConfig:
+    model: str
+    reasoning_effort: Optional[str] = None
+
+
+@dataclass
 class Config(Hashable):
     data_dir: Path
     desc_file: Path | None
@@ -107,6 +133,10 @@ class Config(Hashable):
     agent: AgentConfig
     experiment: ExperimentConfig
     debug: DebugConfig
+    writeup: Optional[WriteupConfig] = None
+    citation: Optional[CitationConfig] = None
+    review: Optional[ReviewConfig] = None
+    agg_plots: Optional[AggPlotsConfig] = None
 
 
 def _get_next_logindex(dir: Path) -> int:

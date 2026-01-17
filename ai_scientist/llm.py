@@ -8,7 +8,27 @@ import anthropic
 import backoff
 import openai
 
-MAX_NUM_TOKENS = 4096
+MAX_NUM_TOKENS = 16384  # Increased for full paper generation
+
+
+def _max_tokens_kwargs(model: str, max_tokens: int) -> dict:
+    if model.startswith("gpt-5"):
+        return {"max_completion_tokens": max_tokens}
+    return {"max_tokens": max_tokens}
+
+
+def _reasoning_effort_kwargs(model: str, reasoning_effort: str | None) -> dict:
+    if reasoning_effort and model.startswith("gpt-5"):
+        return {"reasoning_effort": reasoning_effort}
+    return {}
+
+
+def _normalize_temperature(model: str, temperature: float) -> float:
+    """Some models only support temperature=1.0 (e.g., gpt-5.2, o1, o3)."""
+    if model.startswith("gpt-5") or model.startswith("o1") or model.startswith("o3"):
+        return 1.0
+    return temperature
+
 
 AVAILABLE_LLMS = [
     "claude-3-5-sonnet-20240620",
@@ -19,6 +39,8 @@ AVAILABLE_LLMS = [
     "gpt-4o",
     "gpt-4o-2024-05-13",
     "gpt-4o-2024-08-06",
+    "gpt-5",
+    "gpt-5.2",
     "gpt-4.1",
     "gpt-4.1-2025-04-14",
     "gpt-4.1-mini",
@@ -30,11 +52,15 @@ AVAILABLE_LLMS = [
     "o1-mini-2024-09-12",
     "o3-mini",
     "o3-mini-2025-01-31",
+    # Gemini models (OpenAI-compatible)
+    "gemini-3-pro-preview",
     # DeepSeek Models
     "deepseek-coder-v2-0724",
     "deepcoder-14b",
     # Llama 3 models
     "llama3.1-405b",
+    # Anthropic direct
+    "claude-sonnet-4-5",
     # Anthropic Claude models via Amazon Bedrock
     "bedrock/anthropic.claude-3-sonnet-20240229-v1:0",
     "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
@@ -93,8 +119,10 @@ def get_batch_responses_from_llm(
     msg_history=None,
     temperature=0.7,
     n_responses=1,
+    reasoning_effort=None,
 ) -> tuple[list[str], list[list[dict[str, Any]]]]:
     msg = prompt
+    temperature = _normalize_temperature(model, temperature)
     if msg_history is None:
         msg_history = []
 
@@ -107,7 +135,7 @@ def get_batch_responses_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=n_responses,
             stop=None,
         )
@@ -124,7 +152,8 @@ def get_batch_responses_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
+            **_reasoning_effort_kwargs(model, reasoning_effort),
             n=n_responses,
             stop=None,
             seed=0,
@@ -142,7 +171,7 @@ def get_batch_responses_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=n_responses,
             stop=None,
         )
@@ -159,7 +188,7 @@ def get_batch_responses_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=n_responses,
             stop=None,
         )
@@ -176,7 +205,7 @@ def get_batch_responses_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=n_responses,
             stop=None,
         )
@@ -213,7 +242,7 @@ def get_batch_responses_from_llm(
 
 
 @track_token_usage
-def make_llm_call(client, model, temperature, system_message, prompt):
+def make_llm_call(client, model, temperature, system_message, prompt, reasoning_effort=None):
     if model.startswith("ollama/"):
         return client.chat.completions.create(
             model=model.replace("ollama/", ""),
@@ -222,7 +251,7 @@ def make_llm_call(client, model, temperature, system_message, prompt):
                 *prompt,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=1,
             stop=None,
         )
@@ -234,7 +263,8 @@ def make_llm_call(client, model, temperature, system_message, prompt):
                 *prompt,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
+            **_reasoning_effort_kwargs(model, reasoning_effort),
             n=1,
             stop=None,
             seed=0,
@@ -272,8 +302,10 @@ def get_response_from_llm(
     print_debug=False,
     msg_history=None,
     temperature=0.7,
+    reasoning_effort=None,
 ) -> tuple[str, list[dict[str, Any]]]:
     msg = prompt
+    temperature = _normalize_temperature(model, temperature)
     if msg_history is None:
         msg_history = []
 
@@ -291,7 +323,7 @@ def get_response_from_llm(
         ]
         response = client.messages.create(
             model=model,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             temperature=temperature,
             system=system_message,
             messages=new_msg_history,
@@ -318,7 +350,7 @@ def get_response_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=1,
             stop=None,
         )
@@ -332,6 +364,7 @@ def get_response_from_llm(
             temperature,
             system_message=system_message,
             prompt=new_msg_history,
+            reasoning_effort=reasoning_effort,
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
@@ -343,6 +376,7 @@ def get_response_from_llm(
             temperature,
             system_message=system_message,
             prompt=new_msg_history,
+            reasoning_effort=reasoning_effort,
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
@@ -355,7 +389,7 @@ def get_response_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=1,
             stop=None,
         )
@@ -371,7 +405,7 @@ def get_response_from_llm(
                     *new_msg_history,
                 ],
                 temperature=temperature,
-                max_tokens=MAX_NUM_TOKENS,
+                **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
                 n=1,
                 stop=None,
             )
@@ -414,7 +448,7 @@ def get_response_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
             n=1,
             stop=None,
         )
@@ -429,7 +463,8 @@ def get_response_from_llm(
                 *new_msg_history,
             ],
             temperature=temperature,
-            max_tokens=MAX_NUM_TOKENS,
+            **_max_tokens_kwargs(model, MAX_NUM_TOKENS),
+            **_reasoning_effort_kwargs(model, reasoning_effort),
             n=1,
         )
         content = response.choices[0].message.content

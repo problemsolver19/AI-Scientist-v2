@@ -6,6 +6,7 @@ import torch
 import os
 import re
 import sys
+import yaml
 from datetime import datetime
 from ai_scientist.llm import create_client
 
@@ -30,6 +31,21 @@ from ai_scientist.utils.token_tracker import token_tracker
 
 def print_time():
     print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+
+def load_env(env_path: str) -> None:
+    if not os.path.exists(env_path):
+        return
+    with open(env_path, "r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
 
 
 def save_token_tracker(idea_dir):
@@ -83,40 +99,10 @@ def parse_arguments():
         help="Attempt ID, used to distinguish same idea in different attempts in parallel runs",
     )
     parser.add_argument(
-        "--model_agg_plots",
-        type=str,
-        default="o3-mini-2025-01-31",
-        help="Model to use for plot aggregation",
-    )
-    parser.add_argument(
-        "--model_writeup",
-        type=str,
-        default="o1-preview-2024-09-12",
-        help="Model to use for writeup",
-    )
-    parser.add_argument(
-        "--model_citation",
-        type=str,
-        default="gpt-4o-2024-11-20",
-        help="Model to use for citation gathering",
-    )
-    parser.add_argument(
         "--num_cite_rounds",
         type=int,
         default=20,
         help="Number of citation rounds to perform",
-    )
-    parser.add_argument(
-        "--model_writeup_small",
-        type=str,
-        default="gpt-4o-2024-05-13",
-        help="Smaller model to use for writeup",
-    )
-    parser.add_argument(
-        "--model_review",
-        type=str,
-        default="gpt-4o-2024-11-20",
-        help="Model to use for review main text and captions",
     )
     parser.add_argument(
         "--skip_writeup",
@@ -180,6 +166,7 @@ def redirect_stdout_stderr_to_file(log_file_path):
 
 
 if __name__ == "__main__":
+    load_env(osp.join(osp.dirname(osp.abspath(__file__)), ".env"))
     args = parse_arguments()
     os.environ["AI_SCIENTIST_ROOT"] = os.path.dirname(os.path.abspath(__file__))
     print(f"Set AI_SCIENTIST_ROOT to {os.environ['AI_SCIENTIST_ROOT']}")
@@ -253,6 +240,55 @@ if __name__ == "__main__":
         idea_path_json,
     )
 
+    with open(idea_config_path, "r") as f:
+        run_config = yaml.safe_load(f) or {}
+
+    writeup_cfg = run_config.get("writeup", {})
+    citation_cfg = run_config.get("citation", {})
+    review_cfg = run_config.get("review", {})
+    agg_plots_cfg = run_config.get("agg_plots", {})
+
+    writeup_model = writeup_cfg.get("model")
+    writeup_small_model = writeup_cfg.get("model_small")
+    writeup_reasoning_effort = writeup_cfg.get("reasoning_effort")
+    citation_model = citation_cfg.get("model")
+    citation_reasoning_effort = citation_cfg.get("reasoning_effort")
+    review_model = review_cfg.get("model")
+    review_reasoning_effort = review_cfg.get("reasoning_effort")
+    agg_plots_model = agg_plots_cfg.get("model")
+    agg_plots_reasoning_effort = agg_plots_cfg.get("reasoning_effort")
+
+    missing_models = []
+    if not agg_plots_model:
+        missing_models.append("agg_plots.model")
+    if not args.skip_writeup:
+        if not writeup_model:
+            missing_models.append("writeup.model")
+        if not writeup_small_model:
+            missing_models.append("writeup.model_small")
+        if not citation_model:
+            missing_models.append("citation.model")
+        if not args.skip_review and not review_model:
+            missing_models.append("review.model")
+
+    if (
+        (writeup_model and writeup_model.startswith("gpt-5"))
+        or (writeup_small_model and writeup_small_model.startswith("gpt-5"))
+    ) and not writeup_reasoning_effort:
+        missing_models.append("writeup.reasoning_effort")
+    if citation_model and citation_model.startswith("gpt-5") and not citation_reasoning_effort:
+        missing_models.append("citation.reasoning_effort")
+    if review_model and review_model.startswith("gpt-5") and not review_reasoning_effort:
+        missing_models.append("review.reasoning_effort")
+    if agg_plots_model and agg_plots_model.startswith("gpt-5") and not agg_plots_reasoning_effort:
+        missing_models.append("agg_plots.reasoning_effort")
+
+    if missing_models:
+        raise SystemExit(
+            "Missing required model settings in bfts_config.yaml:\n- "
+            + "\n- ".join(missing_models)
+        )
+
     perform_experiments_bfts(idea_config_path)
     experiment_results_dir = osp.join(idea_dir, "logs/0-run/experiment_results")
     if os.path.exists(experiment_results_dir):
@@ -262,7 +298,11 @@ if __name__ == "__main__":
             dirs_exist_ok=True,
         )
 
-    aggregate_plots(base_folder=idea_dir, model=args.model_agg_plots)
+    aggregate_plots(
+        base_folder=idea_dir,
+        model=agg_plots_model,
+        reasoning_effort=agg_plots_reasoning_effort,
+    )
 
     shutil.rmtree(osp.join(idea_dir, "experiment_results"))
 
@@ -273,23 +313,26 @@ if __name__ == "__main__":
         citations_text = gather_citations(
             idea_dir,
             num_cite_rounds=args.num_cite_rounds,
-            small_model=args.model_citation,
+            small_model=citation_model,
+            reasoning_effort=citation_reasoning_effort,
         )
         for attempt in range(args.writeup_retries):
             print(f"Writeup attempt {attempt+1} of {args.writeup_retries}")
             if args.writeup_type == "normal":
                 writeup_success = perform_writeup(
                     base_folder=idea_dir,
-                    small_model=args.model_writeup_small,
-                    big_model=args.model_writeup,
+                    small_model=writeup_small_model,
+                    big_model=writeup_model,
+                    reasoning_effort=writeup_reasoning_effort,
                     page_limit=8,
                     citations_text=citations_text,
                 )
             else:
                 writeup_success = perform_icbinb_writeup(
                     base_folder=idea_dir,
-                    small_model=args.model_writeup_small,
-                    big_model=args.model_writeup,
+                    small_model=writeup_small_model,
+                    big_model=writeup_model,
+                    reasoning_effort=writeup_reasoning_effort,
                     page_limit=4,
                     citations_text=citations_text,
                 )
@@ -307,8 +350,13 @@ if __name__ == "__main__":
         if os.path.exists(pdf_path):
             print("Paper found at: ", pdf_path)
             paper_content = load_paper(pdf_path)
-            client, client_model = create_client(args.model_review)
-            review_text = perform_review(paper_content, client_model, client)
+            client, client_model = create_client(review_model)
+            review_text = perform_review(
+                paper_content,
+                client_model,
+                client,
+                reasoning_effort=review_reasoning_effort,
+            )
             review_img_cap_ref = perform_imgs_cap_ref_review(
                 client, client_model, pdf_path
             )

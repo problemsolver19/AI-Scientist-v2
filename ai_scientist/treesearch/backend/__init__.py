@@ -46,23 +46,29 @@ def query(
         "temperature": temperature,
     }
 
-    # Handle models with beta limitations
-    # ref: https://platform.openai.com/docs/guides/reasoning/beta-limitations
-    if model.startswith("o1"):
+    # Models that require a user message (no system-only calls)
+    if ("gemini" in model or model.startswith("o1") or model.startswith("o3")):
         if system_message and user_message is None:
             user_message = system_message
-        elif system_message is None and user_message:
-            pass
+            system_message = None
         elif system_message and user_message:
-            system_message["Main Instructions"] = {}
-            system_message["Main Instructions"] |= user_message
-            user_message = system_message
-        system_message = None
-        # model_kwargs["temperature"] = 0.5
-        model_kwargs["reasoning_effort"] = "high"
-        model_kwargs["max_completion_tokens"] = 100000  # max_tokens
-        # remove 'temperature' from model_kwargs
+            # Merge system into user for models that don't support system messages
+            if model.startswith("o1") or model.startswith("o3"):
+                system_message["Main Instructions"] = {}
+                system_message["Main Instructions"] |= user_message
+                user_message = system_message
+                system_message = None
+
+    # Reasoning models: o1, o3, gpt-5
+    if model.startswith("o1") or model.startswith("o3"):
+        model_kwargs["reasoning_effort"] = model_kwargs.get("reasoning_effort", "high")
+        model_kwargs["max_completion_tokens"] = max_tokens or 100000
         model_kwargs.pop("temperature", None)
+    elif model.startswith("gpt-5"):
+        # GPT-5: medium default, GPT-5.1/5.2: none default but we want medium for quality
+        model_kwargs["reasoning_effort"] = model_kwargs.get("reasoning_effort", "medium")
+        model_kwargs["max_completion_tokens"] = max_tokens
+        model_kwargs.pop("max_tokens", None)
     else:
         model_kwargs["max_tokens"] = max_tokens
 

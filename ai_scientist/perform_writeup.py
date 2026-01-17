@@ -250,6 +250,7 @@ This JSON will be automatically parsed, so ensure the format is precise."""
             ),
             msg_history=msg_history,
             print_debug=False,
+            reasoning_effort=reasoning_effort,
         )
         if "No more citations needed" in text:
             print("No more citations needed.")
@@ -296,6 +297,7 @@ This JSON will be automatically parsed, so ensure the format is precise."""
             ),
             msg_history=msg_history,
             print_debug=False,
+            reasoning_effort=reasoning_effort,
         )
         if "Do not add any" in text:
             print("Do not add any.")
@@ -460,6 +462,7 @@ def perform_writeup(
     big_model="o1-2024-12-17",
     n_writeup_reflections=3,
     page_limit=8,
+    reasoning_effort=None,
 ):
     compile_attempt = 0
     base_pdf_file = osp.join(base_folder, f"{osp.basename(base_folder)}")
@@ -641,6 +644,7 @@ def perform_writeup(
             model=big_client_model,
             system_message=big_model_system_message,
             print_debug=False,
+            reasoning_effort=reasoning_effort,
         )
 
         latex_code_match = re.search(r"```latex(.*?)```", response, re.DOTALL)
@@ -713,6 +717,7 @@ If you believe you are done, simply say: "I am done".
                 system_message=big_model_system_message,
                 msg_history=msg_history,
                 print_debug=False,
+                reasoning_effort=reasoning_effort,
             )
 
             if "I am done" in reflection_response:

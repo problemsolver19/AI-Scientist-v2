@@ -134,7 +134,10 @@ def run_aggregator_script(
 
 
 def aggregate_plots(
-    base_folder: str, model: str = "o1-2024-12-17", n_reflections: int = 5
+    base_folder: str,
+    model: str = "o1-2024-12-17",
+    n_reflections: int = 5,
+    reasoning_effort=None,
 ) -> None:
     filename = "auto_plot_aggregator.py"
     aggregator_script_path = os.path.join(base_folder, filename)
@@ -169,6 +172,7 @@ def aggregate_plots(
             system_message=AGGREGATOR_SYSTEM_MSG,
             print_debug=False,
             msg_history=msg_history,
+            reasoning_effort=reasoning_effort,
         )
     except Exception:
         traceback.print_exc()
@@ -225,6 +229,7 @@ If you believe you are done, simply say: "I am done". Otherwise, please provide 
                 system_message=AGGREGATOR_SYSTEM_MSG,
                 print_debug=False,
                 msg_history=msg_history,
+                reasoning_effort=reasoning_effort,
             )
 
         except Exception:

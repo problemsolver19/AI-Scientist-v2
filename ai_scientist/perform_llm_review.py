@@ -134,6 +134,7 @@ def perform_review(
     return_msg_history=False,
     reviewer_system_prompt=reviewer_system_prompt_neg,
     review_instruction_form=neurips_form,
+    reasoning_effort=None,
 ):
     if num_fs_examples > 0:
         fs_prompt = get_review_fewshot_examples(num_fs_examples)
@@ -157,6 +158,7 @@ Here is the paper you are asked to review:
             msg_history=msg_history,
             temperature=0.75,
             n_responses=num_reviews_ensemble,
+            reasoning_effort=reasoning_effort,
         )
         parsed_reviews = []
         for idx, rev in enumerate(llm_reviews):
@@ -165,7 +167,13 @@ Here is the paper you are asked to review:
             except Exception as e:
                 print(f"Ensemble review {idx} failed: {e}")
         parsed_reviews = [r for r in parsed_reviews if r is not None]
-        review = get_meta_review(model, client, temperature, parsed_reviews)
+        review = get_meta_review(
+            model,
+            client,
+            temperature,
+            parsed_reviews,
+            reasoning_effort=reasoning_effort,
+        )
         if review is None:
             review = parsed_reviews[0]
         for score, limits in [
@@ -209,6 +217,7 @@ REVIEW JSON:
             print_debug=False,
             msg_history=msg_history,
             temperature=temperature,
+            reasoning_effort=reasoning_effort,
         )
         review = extract_json_between_markers(llm_review)
 
@@ -221,6 +230,7 @@ REVIEW JSON:
                 system_message=reviewer_system_prompt,
                 msg_history=msg_history,
                 temperature=temperature,
+                reasoning_effort=reasoning_effort,
             )
             review = extract_json_between_markers(text)
             assert review is not None, "Failed to extract JSON from LLM output"
@@ -346,7 +356,7 @@ Your job is to aggregate the reviews into a single meta-review in the same forma
 Be critical and cautious in your decision, find consensus, and respect the opinion of all the reviewers."""
 
 
-def get_meta_review(model, client, temperature, reviews):
+def get_meta_review(model, client, temperature, reviews, reasoning_effort=None):
     review_text = ""
     for i, r in enumerate(reviews):
         review_text += f"""
@@ -364,6 +374,7 @@ Review {i + 1}/{len(reviews)}:
         print_debug=False,
         msg_history=None,
         temperature=temperature,
+        reasoning_effort=reasoning_effort,
     )
     meta_review = extract_json_between_markers(llm_review)
     return meta_review

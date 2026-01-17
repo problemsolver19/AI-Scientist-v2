@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Scientist Prompt JSON (Static)</title>
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --panel: #0d1117;
+      --panel-2: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --json-empty: #fca5a5;
+      --json-filled: #93c5fd;
+      --json-green: #22c55e;
+      --json-system: #60a5fa;
+      --json-user: #facc15;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "JetBrains Mono", "Courier New", monospace;
+      line-height: 1.5;
+    }
+    header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    select {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    pre {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="font-weight:700;">AI-Scientist Prompt JSON (Static Viewer)</div>
+      <div style="color:var(--muted);font-size:12px;">Shows the combined system payload sent to the code LLM. Colors mark content emptiness and source type.</div>
+    </div>
+  </header>
+  <main>
+    <div class="bar">
+      <label for="stageSelect">Stage:</label>
+      <select id="stageSelect"></select>
+      <div class="legend">
+        <span class="pill"><span class="dot" style="background:var(--json-empty);"></span>content_empty</span>
+        <span class="pill"><span class="dot" style="background:var(--json-filled);"></span>content_populated/runtime</span>
+        <span class="pill"><span class="dot" style="background:var(--json-system);"></span>role=system</span>
+        <span class="pill"><span class="dot" style="background:var(--json-user);"></span>role=user</span>
+        <span class="pill"><span class="dot" style="background:var(--json-green);"></span>source</span>
+      </div>
+    </div>
+    <pre id="output"></pre>
+  </main>
+
+  <script>
+    const sectionOrder = [
+      "introduction",
+      "research_preamble",
+      "title",
+      "abstract",
+      "hypothesis",
+      "code_to_use",
+      "stage_info",
+      "memory",
+      "response_format",
+      "evaluation_metrics",
+      "impl_guidelines",
+      "packages",
+      "experiments",
+      "risk_factors",
+    ];
+
+    const stages = [
+      {
+        number: 1,
+        name: "Initial Implementation",
+        codeName: "initial_implementation",
+        goals: [
+          "Focus on getting basic working implementation",
+          "Use a simple dataset",
+          "Aim for basic functional correctness",
+          "If given 'Code To Use', use it as starting point"
+        ]
+      },
+      {
+        number: 2,
+        name: "Baseline Tuning",
+        codeName: "baseline_tuning",
+        goals: [
+          "Change hyperparameters (learning rate, epochs, batch size)",
+          "DO NOT change the model architecture",
+          "Introduce TWO more new datasets from HuggingFace"
+        ]
+      },
+      {
+        number: 3,
+        name: "Creative Research",
+        codeName: "creative_research",
+        goals: [
+          "Explore novel improvements",
+          "Come up with experiments to reveal new insights",
+          "Be creative and think outside the box",
+          "Use THREE HuggingFace datasets total"
+        ]
+      },
+      {
+        number: 4,
+        name: "Ablation Studies",
+        codeName: "ablation_studies",
+        goals: [
+          "Conduct systematic component analysis",
+          "Reveal the contribution of each part",
+          "Use the same datasets from previous stage"
+        ]
+      }
+    ];
+
+    const promptSections = [
+      {
+        id: "introduction",
+        name: "Introduction",
+        content: "You are an AI researcher who is looking to publish a paper that will contribute significantly to the field. Your first task is to write a python code to implement a solid baseline based on your research idea provided below, from data preparation to model training, as well as evaluation and visualization. Focus on getting a simple but working implementation first, before any sophisticated improvements. We will explore more advanced variations in later stages.",
+        source: { type: "hardcoded", file: "ai_scientist/treesearch/parallel_agent.py", lines: "456-461", description: "Static introduction text in _draft() method" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "research_preamble",
+        name: "Research Idea Preamble",
+        content: "You are an ambitious AI researcher who is looking to publish a paper that will contribute significantly to the field. You have an idea and you want to conduct creative experiments to gain scientific insights. Your aim is to run experiments to gather sufficient results for a top conference paper. Your research idea:",
+        source: { type: "hardcoded", file: "ai_scientist/treesearch/agent_manager.py", lines: "180-184", description: "Static preamble in _get_task_desc_str() method" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "title",
+        name: "Title",
+        content: "Compositional Regularization in Neural Networks",
+        source: { type: "ideation", file: "ai_scientist/ideas/i_cant_believe_its_not_better.json", lines: "ideas[0]['Title']", description: "Generated by ideation LLM from topic description" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "abstract",
+        name: "Abstract",
+        content: "Neural networks, despite their remarkable success in various machine learning tasks, often fail to generalize compositionally—the ability to understand and generate novel combinations of familiar components. This limitation hampers their performance on tasks requiring systematic generalization beyond the training data. In this proposal, we introduce a novel training method that incorporates an explicit compositional regularization term into the loss function, encouraging the network to learn disentangled, reusable representations...",
+        source: { type: "ideation", file: "ai_scientist/ideas/i_cant_believe_its_not_better.json", lines: "ideas[0]['Abstract']", description: "Generated by ideation LLM from topic description" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "hypothesis",
+        name: "Short Hypothesis",
+        content: "Introducing a compositional regularization term during training can encourage neural networks to develop compositional representations, thereby improving their ability to generalize to novel combinations of known components.",
+        source: { type: "ideation", file: "ai_scientist/ideas/i_cant_believe_its_not_better.json", lines: "ideas[0]['Short Hypothesis']", description: "Generated by ideation LLM from topic description" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "code_to_use",
+        name: "Code To Use",
+        content: "Human-provided reference code snippet (if present in topic).",
+        source: { type: "human", file: "ai_scientist/ideas/i_cant_believe_its_not_better.py", lines: "1-414", description: "Human-written dataset loading examples and training code reference" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "stage_info",
+        name: "Current Stage Info",
+        contentVariants: [
+          { label: "content_runtime", value: "Populated at runtime: current main stage, sub-stage, and goals from AgentManager.", state: "populated" }
+        ],
+        source: { type: "hardcoded", file: "ai_scientist/treesearch/agent_manager.py", lines: "286-288, 144-167", description: "Stage name from main_stage_dict, goals from main_stage_goals" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "memory",
+        name: "Memory",
+        contentVariants: [
+          { label: "content_empty", value: "No experiments conducted yet.", state: "empty" },
+          { label: "content_populated", value: "LLM-generated summary of previous nodes (successes + failures) from Journal.generate_summary().", state: "populated" }
+        ],
+        source: { type: "previous", file: "ai_scientist/treesearch/journal.py", lines: "504-548", description: "Generated from Journal.generate_summary() based on previous nodes" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "response_format",
+        name: "Response Format",
+        content: "Your response should be a brief outline/sketch of your proposed solution in natural language (7-10 sentences), followed by a single markdown code block (using the format ```python ... ```)...",
+        source: { type: "hardcoded", file: "ai_scientist/treesearch/parallel_agent.py", lines: "397-405", description: "_prompt_resp_fmt property" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "evaluation_metrics",
+        name: "Evaluation Metric(s)",
+        contentVariants: [
+          { label: "content_generated", value: "Generated once per run by LLM in _define_global_metrics() (metric name, maximize flag, description).", state: "populated" }
+        ],
+        source: { type: "runtime", file: "ai_scientist/treesearch/parallel_agent.py", lines: "1194-1222", description: "LLM-generated once at ParallelAgent init via _define_global_metrics()" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "impl_guidelines",
+        name: "Implementation Guidelines",
+        content: "Critical GPU requirements and data saving rules for experiment_data.npy ...",
+        source: { type: "hardcoded", file: "ai_scientist/treesearch/parallel_agent.py", lines: "298-395", description: "_prompt_impl_guideline property" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "packages",
+        name: "Installed Packages",
+        content: "List of allowed ML packages (torch, numpy, pandas, scikit-learn, etc.).",
+        source: { type: "hardcoded", file: "ai_scientist/treesearch/parallel_agent.py", lines: "274-295", description: "_prompt_environment property (list is shuffled each time)" },
+        stages: [1,2,3,4]
+      },
+      {
+        id: "experiments",
+        name: "Experiment Plan",
+        content: "[\"Implement the compositional regularization term using mutual information estimation\", \"Train models on synthetic datasets like SCAN and COGS\", \"Apply the method to real-world tasks such as machine translation\", \"Compare against standard regularization techniques\"]",
+        source: { type: "ideation", file: "ai_scientist/ideas/i_cant_believe_its_not_better.json", lines: "ideas[0]['Experiments']", description: "Generated by ideation LLM - experiment plan" },
+        stages: [3]
+      },
+      {
+        id: "risk_factors",
+        name: "Risk Factors and Limitations",
+        content: "[\"The effectiveness may vary across different datasets and architectures\", \"Additional computational overhead from regularization term\", \"May require careful tuning of regularization strength\"]",
+        source: { type: "ideation", file: "ai_scientist/ideas/i_cant_believe_its_not_better.json", lines: "ideas[0]['Risk Factors and Limitations']", description: "Generated by ideation LLM - risk analysis" },
+        stages: [4]
+      }
+    ];
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function renderValue(val, indent, color) {
+      const pad = "  ".repeat(indent);
+      if (val === null) return `<span style="color:${color || "inherit"}">null</span>`;
+      if (typeof val === "string") return `<span style="color:${color || "inherit"}">"${escapeHtml(val)}"</span>`;
+      if (typeof val === "number" || typeof val === "boolean") return `<span style="color:${color || "inherit"}">${val}</span>`;
+      if (Array.isArray(val)) {
+        let out = `[`;
+        if (val.length) out += "\n";
+        val.forEach((item, idx) => {
+          out += pad + "  " + renderValue(item, indent + 1, color);
+          if (idx < val.length - 1) out += ",";
+          out += "\n";
+        });
+        out += pad + "]";
+        return out;
+      }
+      if (typeof val === "object") {
+        const entries = Object.entries(val);
+        let out = "{\n";
+        entries.forEach(([k, v], idx) => {
+          let nextColor;
+          if (k === "source") nextColor = "var(--json-green)";
+          else if (k === "role" && typeof v === "string") nextColor = v === "system" ? "var(--json-system)" : "var(--json-user)";
+          else if (k === "content" || k.startsWith("content_")) nextColor = k.includes("empty") ? "var(--json-empty)" : "var(--json-filled)";
+          else nextColor = color;
+          out += pad + "  " + `"${k}": ` + renderValue(v, indent + 1, nextColor);
+          if (idx < entries.length - 1) out += ",";
+          out += "\n";
+        });
+        out += pad + "}";
+        return out;
+      }
+      return "";
+    }
+
+    function buildPromptJson(stageNumber) {
+      const stage = stages.find((s) => s.number === stageNumber);
+      const sections = promptSections
+        .filter((s) => s.stages.includes(stageNumber))
+        .sort((a, b) => {
+          const ia = sectionOrder.indexOf(a.id);
+          const ib = sectionOrder.indexOf(b.id);
+          const sa = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
+          const sb = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
+          return sa === sb ? a.id.localeCompare(b.id) : sa - sb;
+        })
+        .map((section, idx) => {
+          const role = ["hardcoded", "runtime"].includes(section.source.type) ? "system" : "user";
+          const base = {
+            order: idx + 1,
+            id: section.id,
+            name: section.name,
+            role,
+            source: section.source,
+          };
+          if (section.contentVariants && section.contentVariants.length) {
+            section.contentVariants.forEach((v) => {
+              base[v.label] = v.value;
+            });
+          }
+          if (section.id === "stage_info") {
+            base["content_runtime"] = `Current Main Stage: ${stage.codeName}
+Sub-stage: 1 - preliminary
+Sub-stage goals:
+${stage.goals.map((g) => `- ${g}`).join("\n")}`;
+          } else if (section.content && !section.contentVariants) {
+            base["content"] = section.content;
+          }
+          return base;
+        });
+      return { stage, sections };
+    }
+
+    function render(stageNumber) {
+      const json = buildPromptJson(stageNumber);
+      const html = renderValue(json, 0);
+      document.getElementById("output").innerHTML = html;
+    }
+
+    function init() {
+      const select = document.getElementById("stageSelect");
+      stages.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.number;
+        opt.textContent = `${s.number} - ${s.name}`;
+        select.appendChild(opt);
+      });
+      select.value = "1";
+      select.addEventListener("change", (e) => render(Number(e.target.value)));
+      render(1);
+    }
+
+    init();
+  </script>
+</body>
+</html>
